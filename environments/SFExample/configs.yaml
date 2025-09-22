@@ -1,0 +1,7 @@
+---
+name: SFExample
+description: "Example SimFrame optimisation"
+version: "0.1"
+dependencies:
+  - badger-opt
+  - SimulationFramework
