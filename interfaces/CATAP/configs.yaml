@@ -1,0 +1,6 @@
+---
+name: CATAPInterface
+version: "0.1"
+dependencies:
+  - badger-opt
+  - CATAP

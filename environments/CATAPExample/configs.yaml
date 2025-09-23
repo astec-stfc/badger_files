@@ -1,0 +1,7 @@
+---
+name: CATAPExample
+description: "Example CATAP optimisation"
+version: "0.1"
+dependencies:
+  - badger-opt
+  - CATAP
