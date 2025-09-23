@@ -1,4 +1,5 @@
 import os
+import time
 from badger import interface
 from CATAP.diagnostics.camera import CameraFactory
 from CATAP.diagnostics.charge import ChargeFactory
@@ -46,6 +47,7 @@ class CATAPInterface(interface.Interface):
             setattr(element, method, value)
             
             self._states[channel] = value
+        time.sleep(1)
 
     def get_values(self, channel_names):
         channel_outputs = {}
@@ -69,13 +71,17 @@ class CATAPInterface(interface.Interface):
         outputs = {}
 
         for observable in observable_names:
-            factory, element_name, method = observable.split(":")
-            print(f'CATAP observing {method} for {element_name} from factory {factory}')
-            if factory == "camera" or factory == "screen":
-                outputs[observable] = self.fit_image(element_name, method)
+            if ':' in observable:
+                factory, element_name, method = observable.split(":")
+                print(f'CATAP observing {method} for {element_name} from factory {factory}')
+                if factory == "camera" or factory == "screen":
+                    outputs[observable] = self.fit_image(element_name, method)
+                else:
+                    element = self.get_factory(factory).get_hardware(element_name)
+                    outputs[observable] = getattr(element, method)
+                print(f'\tvalue = {outputs[observable]}')
             else:
-                element = self.get_factory(factory).get_hardware(element_name)
-                outputs[observable] = getattr(element, method)
+                outputs[observable] = 0.
         return outputs
 
     def fit_image(self, camera: str, method: str):
