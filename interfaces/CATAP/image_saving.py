@@ -28,14 +28,41 @@ def get_data_array(camera_name, scalefactor: int = 4):
     set_camera_ScaleFactor(camera_name=camera_name, scalefactor=int(scalefactor))
     size0 = get_camera_ArraySize0(camera_name=camera_name)
     size1 = get_camera_ArraySize1(camera_name=camera_name)
-    data = caget(camera_name+":CAM2:ArrayData", count=size0 * size1)
-    set_camera_ScaleFactor(camera_name=camera_name, scalefactor=int(original_scalefactor))
+    data = caget(camera_name + ":CAM2:ArrayData", count=size0 * size1)
+    set_camera_ScaleFactor(
+        camera_name=camera_name, scalefactor=int(original_scalefactor)
+    )
     return np.array(data).reshape((size1, size0))
 
 
 def get_beam_image(laser_shutter, camera, scalefactor: int = 4):
     laser_shutter.open_shutters()
     return {"image_data": get_data_array(camera, scalefactor)}
+
+
+def get_background_image(laser_shutter, camera, scalefactor: int = 4):
+    laser_shutter.close_shutters()
+    return {"background_image_data": get_data_array(camera, scalefactor)}
+
+
+def get_beam_image_with_background(laser_shutter, camera, scalefactor: int = 4):
+    are_shutters_open = laser_shutter.shutters_open
+    output = {}
+    output.update(
+        get_background_image(
+            laser_shutter=laser_shutter, camera=camera, scalefactor=scalefactor
+        )
+    )
+    output.update(
+        get_beam_image(
+            laser_shutter=laser_shutter, camera=camera, scalefactor=scalefactor
+        )
+    )
+    if are_shutters_open:
+        laser_shutter.open_shutters()
+    else:
+        laser_shutter.close_shutters()
+    return output
 
 
 def save_image(camera):

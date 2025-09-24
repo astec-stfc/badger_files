@@ -4,4 +4,5 @@ description: "Example CATAP optimisation"
 version: "0.1"
 dependencies:
   - badger-opt
+interface:
   - CATAP

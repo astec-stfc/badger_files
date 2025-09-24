@@ -4,8 +4,8 @@ from badger.errors import (
     BadgerNoInterfaceError,
 )
 from badger.formula import interpret_expression
-from interfaces.CATAP import CATAPInterface
 from SimulationFramework.Modules.optimisation.constraints import constraintsClass
+from interfaces.CATAP import Interface
 
 
 class Environment(environment.Environment):
@@ -69,12 +69,9 @@ class Environment(environment.Environment):
         },
     }
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Initialize the interface if not already set
+    def model_post_init(self, context):
         self._cons = constraintsClass()
-        if not self.interface:
-            self.interface = CATAPInterface(machine_areas=self._machine_areas)
+        return super().model_post_init(context)
 
     def process_value(self, value, observables: dict):
         if isinstance(value, (list, tuple)):
@@ -91,7 +88,7 @@ class Environment(environment.Environment):
                 con_list[cons][key] = self.process_value(con_list[cons][key], observables)
 
         return self._cons.constraints(con_list)
-    
+
     def get_observables(self, observable_names: list[str]) -> dict:
         if not self.interface:
             raise BadgerNoInterfaceError

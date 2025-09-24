@@ -3,49 +3,51 @@ import time
 from badger import interface
 from CATAP.diagnostics.camera import CameraFactory
 from CATAP.diagnostics.charge import ChargeFactory
+from CATAP.laser.pi_laser import PILaserFactory
 from CATAP.magnet import MagnetFactory
-
+from image_saving import get_beam_image_with_background
 
 os.environ["EPICS_CA_ADDR_LIST"] = "192.168.83.255 192.168.119.255"
 os.environ["EPICS_CA_SERVER_PORT"] = ""
 os.environ["EPICS_CA_AUT_ADDR_LIST"] = "NO"
 
+factories = {}
+machine_areas = {}
 
-class CATAPInterface(interface.Interface):
-    name = "CATAPInterface"
+
+def get_factory(factory_name: str):
+    if factory_name not in factories:
+        if factory_name not in machine_areas:
+            machine_areas[factory_name] = None
+        print(f'Initialising {factory_name} factory with areas: {machine_areas[factory_name]}!')
+        if factory_name == "magnet":
+            _magnetFactory = MagnetFactory(is_virtual=False, areas=machine_areas[factory_name])
+            factories[factory_name] = _magnetFactory
+        elif factory_name == "charge":
+            _chargeFactory = ChargeFactory(is_virtual=False, areas=machine_areas[factory_name])
+            factories[factory_name] = _chargeFactory
+        elif factory_name == "camera":
+            _cameraFactory = CameraFactory(is_virtual=False, areas=machine_areas[factory_name])
+            factories[factory_name] = _cameraFactory
+        elif factory_name == "pilaser":
+            _laserFactory = PILaserFactory(is_virtual=False, areas=machine_areas[factory_name])
+            factories[factory_name] = _laserFactory
+    return factories[factory_name]
+
+
+class Interface(interface.Interface):
+    name = "CATAP"
 
     # Private variables
-    _factories = {}
-    _states: dict
-
-    def __init__(self, machine_areas: dict, **data):
-        super().__init__(**data)
-        self._machine_areas = machine_areas
-        self._states = {}
-
-    def get_factory(self, factory_name: str):
-        if factory_name not in self._factories:
-            if factory_name not in self._machine_areas:
-                self._machine_areas[factory_name] = None
-            print(f'Initialising {factory_name} factory with areas: {self._machine_areas[factory_name]}!')
-            if factory_name == "magnet":
-                self._magnetFactory = MagnetFactory(is_virtual=False, areas=self._machine_areas[factory_name])
-                self._factories[factory_name] = self._magnetFactory
-            elif factory_name == "charge":
-                self._chargeFactory = ChargeFactory(is_virtual=False, areas=self._machine_areas[factory_name])
-                self._factories[factory_name] = self._chargeFactory
-            elif factory_name == "camera":
-                self._cameraFactory = CameraFactory(is_virtual=False, areas=self._machine_areas[factory_name])
-                self._factories[factory_name] = self._cameraFactory
-        return self._factories[factory_name]
+    _states: dict = {}
 
     def set_values(self, channel_inputs):
         for channel, value in channel_inputs.items():
             factory, element_name, method = channel.split(":")
             print(f'CATAP setting {element_name} from factory {factory} to {value} via {method}')
-            element = self.get_factory(factory).get_hardware(element_name)
+            element = get_factory(factory).get_hardware(element_name)
             setattr(element, method, value)
-            
+
             self._states[channel] = value
         time.sleep(1)
 
@@ -55,7 +57,7 @@ class CATAPInterface(interface.Interface):
         for channel in channel_names:
             try:
                 factory, element_name, method = channel.split(":")
-                element = self.get_factory(factory).get_hardware(element_name)
+                element = get_factory(factory).get_hardware(element_name)
                 print(f'CATAP getting {method} for {element_name} from factory {factory}')
                 value = getattr(element, method)
                 print(f'\tvalue = {value}')
@@ -77,7 +79,7 @@ class CATAPInterface(interface.Interface):
                 if factory == "camera" or factory == "screen":
                     outputs[observable] = self.fit_image(element_name, method)
                 else:
-                    element = self.get_factory(factory).get_hardware(element_name)
+                    element = get_factory(factory).get_hardware(element_name)
                     outputs[observable] = getattr(element, method)
                 print(f'\tvalue = {outputs[observable]}')
             else:
@@ -85,4 +87,6 @@ class CATAPInterface(interface.Interface):
         return outputs
 
     def fit_image(self, camera: str, method: str):
-        self._cameraFactory.get_camera(camera)
+        camera = get_factory['camera'].get_hardware(camera)
+        laser = get_factory['pilaser'].get_hardware('PILaser')
+        get_beam_image_with_background(laser_shutter=laser, camera=camera, scalefactor=1)

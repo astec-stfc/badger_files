@@ -71,6 +71,30 @@ def otsu(gray, scale: float = 2**16):
     return final_img
 
 
+def fit_array_image(entry: dict[str, str], cut: int = 1):
+
+    img = entry["image_data"]
+    if "background_image_data" in entry:
+        bg = entry["background_image_data"]
+
+    if bg:
+        img_sub = img.astype(float) - bg.astype(float)
+    else:
+        img_sub = img.astype(float)
+
+    img_sub[img_sub < 0] = 0
+
+    img_sub_otsu = otsu(img_sub)
+    img_sub_sub = img_sub_otsu[::cut, ::cut]
+
+    fit_x, fit_y, popt = fit_gaussian_beam_size(img_sub_sub)
+    fit_x *= cut
+    fit_y *= cut
+    popt *= cut
+
+    return popt
+
+
 def fit_saved_image(entry: dict[str, str], cut: int = 1):
     base_image_path = "\\\\claraserv3.dl.ac.uk"
     img_path = base_image_path + entry["image_file"] + "_full.hdf"
